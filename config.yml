@@ -22,6 +22,6 @@ service:
   extensions: [zpages, pprof]
   pipelines:
     traces:
-      receivers: [githubactionslog]
+      receivers: [githubactions]
       processors: [batch]
       exporters: [debug]
