@@ -17,6 +17,12 @@ extensions:
 exporters:
   debug:
     verbosity: basic
+  otlp/apm:
+    endpoint: "${env:APM_SERVER_URL}"
+    headers:
+      Authorization: "Bearer ${env:APM_SERVER_BEARER_TOKEN}"
+    sending_queue:
+      enabled: false
 
 service:
   extensions: [zpages, pprof]
@@ -24,4 +30,4 @@ service:
     traces:
       receivers: [githubactions]
       processors: [batch]
-      exporters: [debug]
+      exporters: [debug, otlp/apm]

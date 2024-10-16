@@ -32,6 +32,7 @@ build: ## Build the binary
 run: ## Run the binary
 	@WEBHOOK_SECRET=$(WEBHOOK_SECRET) \
 	GITHUB_TOKEN=$(GITHUB_TOKEN) \
+	$(cat .env | xargs) \
 	./bin/otelcol-custom --config config.yml
 
 .PHONY: ngrok
