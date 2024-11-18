@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-github/v61/github"
 	"go.opentelemetry.io/collector/pdata/pcommon"
 	"go.opentelemetry.io/collector/pdata/ptrace"
+	semconv "go.opentelemetry.io/collector/semconv/v1.27.0"
 	"go.uber.org/zap"
 )
 
@@ -170,9 +171,12 @@ func createSpan(scopeSpans ptrace.ScopeSpans, step *github.TaskStep, job *github
 
 	var spanID pcommon.SpanID
 
-	span.Attributes().PutStr("ci.github.workflow.job.step.name", step.GetName())
-	span.Attributes().PutStr("ci.github.workflow.job.step.status", step.GetStatus())
-	span.Attributes().PutStr("ci.github.workflow.job.step.conclusion", step.GetConclusion())
+	span.Attributes().PutStr(semconv.AttributeCicdPipelineTaskType, "step")
+	span.Attributes().PutStr(AttributeCicdSystem, "github")
+	span.Attributes().PutStr(semconv.AttributeCicdPipelineTaskName, step.GetName())
+	span.Attributes().PutStr("cicd.pipeline.task.status", step.GetStatus())
+	span.Attributes().PutStr("cicd.pipeline.task.conclusion", step.GetConclusion())
+
 	if len(stepNumber) > 0 && stepNumber[0] > 0 {
 		spanID, _ = generateStepSpanID(job.GetRunID(), int(job.GetRunAttempt()), job.GetName(), step.GetName(), stepNumber[0])
 		span.Attributes().PutInt("ci.github.workflow.job.step.number", int64(stepNumber[0]))
@@ -188,8 +192,8 @@ func createSpan(scopeSpans ptrace.ScopeSpans, step *github.TaskStep, job *github
 	if step.GetCompletedAt().IsZero() {
 		step.CompletedAt = step.StartedAt
 	}
-	span.Attributes().PutStr("ci.github.workflow.job.step.started_at", step.GetStartedAt().Format(time.RFC3339))
-	span.Attributes().PutStr("ci.github.workflow.job.step.completed_at", step.GetCompletedAt().Format(time.RFC3339))
+	span.Attributes().PutStr("cicd.pipeline.task.started_at", step.GetStartedAt().Format(time.RFC3339))
+	span.Attributes().PutStr("cicd.pipeline.task.completed_at", step.GetCompletedAt().Format(time.RFC3339))
 	setSpanTimes(span, step.GetStartedAt().Time, step.GetCompletedAt().Time)
 
 	span.SetName(step.GetName())
