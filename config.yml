@@ -1,5 +1,6 @@
 receivers:
   githubactions:
+    path: /events
     secret: ${env:WEBHOOK_SECRET}
   otlp:
     protocols:

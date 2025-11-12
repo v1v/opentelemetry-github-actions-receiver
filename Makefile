@@ -1,7 +1,8 @@
 SHELL := bash
 MAKEFLAGS += --no-print-directory
 WEBHOOK_SECRET ?= secret
-GITHUB_TOKEN ?= $(shell gh auth token)
+APM_SERVER_URL ?=
+APM_SERVER_BEARER_TOKEN ?=
 
 #######################
 ## Tools
@@ -31,7 +32,6 @@ build: ## Build the binary
 .PHONY: run
 run: ## Run the binary
 	@WEBHOOK_SECRET=$(WEBHOOK_SECRET) \
-	GITHUB_TOKEN=$(GITHUB_TOKEN) \
 	$(cat .env | xargs) \
 	./bin/otelcol-custom --config config.yml
 
