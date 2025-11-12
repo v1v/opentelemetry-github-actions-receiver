@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/google/go-github/v61/github"
+	"github.com/google/go-github/v78/github"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
