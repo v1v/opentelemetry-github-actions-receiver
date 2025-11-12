@@ -1,0 +1,20 @@
+---
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directories:
+      - "**/*"
+    schedule:
+      interval: "weekly"
+    groups:
+      otel-dependencies:
+        patterns:
+          - "go.opentelemetry.io/*"
+          - "github.com/open-telemetry/opentelemetry-collector-contrib/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - automation
