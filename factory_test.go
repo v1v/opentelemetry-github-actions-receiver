@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
@@ -33,12 +34,12 @@ func TestCreateTracesReceiver(t *testing.T) {
 				t.Parallel()
 
 				cfg := createDefaultConfig().(*Config)
-				cfg.Endpoint = "localhost:8080"
+				cfg.NetAddr.Endpoint = "localhost:8080"
 				require.NoError(t, cfg.Validate(), "error validating default config")
 
 				_, err := createTracesReceiver(
 					context.Background(),
-					receivertest.NewNopCreateSettings(),
+					receivertest.NewNopSettings(metadata.Type),
 					cfg,
 					consumertest.NewNop(),
 				)
@@ -51,12 +52,12 @@ func TestCreateTracesReceiver(t *testing.T) {
 				t.Parallel()
 
 				cfg := createDefaultConfig().(*Config)
-				cfg.Endpoint = "localhost:8080"
+				cfg.NetAddr.Endpoint = "localhost:8080"
 				require.NoError(t, cfg.Validate(), "error validating default config")
 
 				_, err := createTracesReceiver(
 					context.Background(),
-					receivertest.NewNopCreateSettings(),
+					receivertest.NewNopSettings(metadata.Type),
 					cfg,
 					nil,
 				)

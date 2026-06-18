@@ -9,10 +9,11 @@ import (
 
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/confignet"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubactionsreceiver/internal/metadata"
+	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
 
 // This file implements factory for GitHub Actions receiver.
@@ -35,7 +36,10 @@ func NewFactory() receiver.Factory {
 func createDefaultConfig() component.Config {
 	return &Config{
 		ServerConfig: confighttp.ServerConfig{
-			Endpoint: defaultBindEndpoint,
+			NetAddr: confignet.AddrConfig{
+				Endpoint:  defaultBindEndpoint,
+				Transport: confignet.TransportTypeTCP,
+			},
 		},
 		Path:   defaultPath,
 		Secret: "",
@@ -45,7 +49,7 @@ func createDefaultConfig() component.Config {
 // createTracesReceiver creates a trace receiver based on provided config.
 func createTracesReceiver(
 	_ context.Context,
-	set receiver.CreateSettings,
+	set receiver.Settings,
 	cfg component.Config,
 	nextConsumer consumer.Traces,
 ) (receiver.Traces, error) {

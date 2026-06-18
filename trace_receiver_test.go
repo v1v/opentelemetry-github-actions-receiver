@@ -4,14 +4,26 @@
 package githubactionsreceiver
 
 import (
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
 
 	"github.com/google/go-github/v78/github"
 	"github.com/stretchr/testify/require"
+	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/confignet"
+	"go.opentelemetry.io/collector/config/configoptional"
+	"go.opentelemetry.io/collector/config/configtls"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -40,9 +52,27 @@ func TestCreateNewTracesReceiver(t *testing.T) {
 			desc: "User defined config success",
 			config: Config{
 				ServerConfig: confighttp.ServerConfig{
-					Endpoint: "localhost:8080",
+					NetAddr: confignet.AddrConfig{Endpoint: "localhost:8080"},
 				},
 				Secret: "mysecret",
+			},
+			consumer: consumertest.NewNop(),
+		},
+		{
+			desc: "Missing endpoint fails",
+			config: Config{
+				ServerConfig: confighttp.ServerConfig{},
+			},
+			consumer: consumertest.NewNop(),
+			err:      errMissingEndpoint,
+		},
+		{
+			desc: "TLS config success",
+			config: Config{
+				ServerConfig: confighttp.ServerConfig{
+					NetAddr: confignet.AddrConfig{Endpoint: "localhost:8080"},
+					TLS:     configoptional.Some(configtls.ServerConfig{}),
+				},
 			},
 			consumer: consumertest.NewNop(),
 		},
@@ -50,13 +80,56 @@ func TestCreateNewTracesReceiver(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			rec, err := newTracesReceiver(receivertest.NewNopCreateSettings(), &test.config, test.consumer)
+			rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), &test.config, test.consumer)
 			if test.err == nil {
 				require.NotNil(t, rec)
 			} else {
 				require.ErrorIs(t, err, test.err)
 				require.Nil(t, rec)
 			}
+		})
+	}
+}
+
+func TestEventToTracesUnknownEvent(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+
+	_, err := eventToTraces(struct{ name string }{name: "unsupported"}, &Config{}, logger)
+	require.Error(t, err)
+	require.Equal(t, "unknown event type", err.Error())
+}
+
+func TestGenerateServiceName(t *testing.T) {
+	tests := []struct {
+		desc     string
+		cfg      *Config
+		fullName string
+		expected string
+	}{
+		{
+			desc: "Custom service name overrides all",
+			cfg: &Config{
+				CustomServiceName: "custom-service",
+				ServiceNamePrefix: "pre-",
+				ServiceNameSuffix: "-suf",
+			},
+			fullName: "Org/Repo_Name",
+			expected: "custom-service",
+		},
+		{
+			desc: "Name formatted with prefix and suffix",
+			cfg: &Config{
+				ServiceNamePrefix: "pre-",
+				ServiceNameSuffix: "-suf",
+			},
+			fullName: "Org/Repo_Name",
+			expected: "pre-org-repo-name-suf",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.Equal(t, tc.expected, generateServiceName(tc.cfg, tc.fullName))
 		})
 	}
 }
@@ -256,4 +329,153 @@ func attributeValueToString(attr pcommon.Value) string {
 
 func getPtr(str string) *string {
 	return &str
+}
+
+type errTracesConsumer struct{}
+
+func (e *errTracesConsumer) Capabilities() consumer.Capabilities {
+	return consumer.Capabilities{MutatesData: false}
+}
+
+func (e *errTracesConsumer) ConsumeTraces(context.Context, ptrace.Traces) error {
+	return errors.New("consumer failed")
+}
+
+func signedWebhookRequest(t *testing.T, path string, payload []byte, eventType, secret string) *http.Request {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(payload))
+
+	mac := hmac.New(sha256.New, []byte(secret))
+	_, err := mac.Write(payload)
+	require.NoError(t, err)
+
+	req.Header.Set("X-Hub-Signature-256", "sha256="+hex.EncodeToString(mac.Sum(nil)))
+	req.Header.Set("X-GitHub-Event", eventType)
+	req.Header.Set("Content-Type", "application/json")
+
+	return req
+}
+
+func TestConvertPRURL(t *testing.T) {
+	apiURL := "https://api.github.com/repos/example/repo/pulls/123"
+	require.Equal(t, "https://github.com/example/repo/pull/123", convertPRURL(apiURL))
+}
+
+func TestReceiverStartShutdown(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.NetAddr.Endpoint = "127.0.0.1:0"
+
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	require.NoError(t, rec.Start(context.Background(), nil))
+	require.NoError(t, rec.Shutdown(context.Background()))
+}
+
+func TestServeHTTP_PathNotFound(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/wrong-path", bytes.NewReader([]byte("{}")))
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestServeHTTP_InvalidSignature(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, cfg.Path, bytes.NewReader([]byte(`{"hook_id":1}`)))
+	req.Header.Set("X-GitHub-Event", "ping")
+	req.Header.Set("X-Hub-Signature-256", "sha256=invalid")
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestServeHTTP_UnsupportedEvent(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	payload := []byte(`{"zen":"keep it logically awesome","hook_id":1}`)
+	req := signedWebhookRequest(t, cfg.Path, payload, "ping", cfg.Secret)
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func TestServeHTTP_WorkflowJobNotCompleted(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	payload, err := os.ReadFile("./testdata/queued/1_workflow_job_queued.json")
+	require.NoError(t, err)
+
+	req := signedWebhookRequest(t, cfg.Path, payload, "workflow_job", cfg.Secret)
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func TestServeHTTP_WorkflowRunNotCompleted(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	require.NoError(t, err)
+
+	payload, err := os.ReadFile("./testdata/requested/1_workflow_run_requested.json")
+	require.NoError(t, err)
+
+	req := signedWebhookRequest(t, cfg.Path, payload, "workflow_run", cfg.Secret)
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusNoContent, rr.Code)
+}
+
+func TestServeHTTP_WorkflowCompletedAccepted(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	sink := &consumertest.TracesSink{}
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, sink)
+	require.NoError(t, err)
+
+	payload, err := os.ReadFile("./testdata/completed/5_workflow_job_completed.json")
+	require.NoError(t, err)
+
+	req := signedWebhookRequest(t, cfg.Path, payload, "workflow_job", cfg.Secret)
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusAccepted, rr.Code)
+	require.Greater(t, sink.SpanCount(), 0)
+}
+
+func TestServeHTTP_ConsumerError(t *testing.T) {
+	cfg := createDefaultConfig().(*Config)
+	cfg.Secret = "top-secret"
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, &errTracesConsumer{})
+	require.NoError(t, err)
+
+	payload, err := os.ReadFile("./testdata/completed/5_workflow_job_completed.json")
+	require.NoError(t, err)
+
+	req := signedWebhookRequest(t, cfg.Path, payload, "workflow_job", cfg.Secret)
+	rr := httptest.NewRecorder()
+
+	rec.ServeHTTP(rr, req)
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
 }
