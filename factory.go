@@ -12,23 +12,24 @@ import (
 	"go.opentelemetry.io/collector/config/confignet"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
-
-	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
 
 // This file implements factory for GitHub Actions receiver.
 
+var receiverType = component.MustNewType("githubactions")
+
 const (
-	defaultBindEndpoint = "0.0.0.0:19418"
-	defaultPath         = "/ghaevents"
+	defaultBindEndpoint  = "0.0.0.0:19418"
+	defaultPath          = "/ghaevents"
+	tracesStability      = component.StabilityLevelAlpha
 )
 
 // NewFactory creates a new GitHub Actions receiver factory
 func NewFactory() receiver.Factory {
 	return receiver.NewFactory(
-		metadata.Type,
+		receiverType,
 		createDefaultConfig,
-		receiver.WithTraces(createTracesReceiver, metadata.TracesStability),
+		receiver.WithTraces(createTracesReceiver, tracesStability),
 	)
 }
 
