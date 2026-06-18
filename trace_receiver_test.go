@@ -19,7 +19,6 @@ import (
 
 	"github.com/google/go-github/v78/github"
 	"github.com/stretchr/testify/require"
-	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/config/confignet"
 	"go.opentelemetry.io/collector/config/configoptional"
@@ -80,7 +79,7 @@ func TestCreateNewTracesReceiver(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), &test.config, test.consumer)
+			rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), &test.config, test.consumer)
 			if test.err == nil {
 				require.NotNil(t, rec)
 			} else {
@@ -366,7 +365,7 @@ func TestReceiverStartShutdown(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.NetAddr.Endpoint = "127.0.0.1:0"
 
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	require.NoError(t, rec.Start(context.Background(), nil))
@@ -375,7 +374,7 @@ func TestReceiverStartShutdown(t *testing.T) {
 
 func TestServeHTTP_PathNotFound(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/wrong-path", bytes.NewReader([]byte("{}")))
@@ -388,7 +387,7 @@ func TestServeHTTP_PathNotFound(t *testing.T) {
 func TestServeHTTP_InvalidSignature(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, cfg.Path, bytes.NewReader([]byte(`{"hook_id":1}`)))
@@ -403,7 +402,7 @@ func TestServeHTTP_InvalidSignature(t *testing.T) {
 func TestServeHTTP_UnsupportedEvent(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	payload := []byte(`{"zen":"keep it logically awesome","hook_id":1}`)
@@ -417,7 +416,7 @@ func TestServeHTTP_UnsupportedEvent(t *testing.T) {
 func TestServeHTTP_WorkflowJobNotCompleted(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	payload, err := os.ReadFile("./testdata/queued/1_workflow_job_queued.json")
@@ -433,7 +432,7 @@ func TestServeHTTP_WorkflowJobNotCompleted(t *testing.T) {
 func TestServeHTTP_WorkflowRunNotCompleted(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, consumertest.NewNop())
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, consumertest.NewNop())
 	require.NoError(t, err)
 
 	payload, err := os.ReadFile("./testdata/requested/1_workflow_run_requested.json")
@@ -450,7 +449,7 @@ func TestServeHTTP_WorkflowCompletedAccepted(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
 	sink := &consumertest.TracesSink{}
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, sink)
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, sink)
 	require.NoError(t, err)
 
 	payload, err := os.ReadFile("./testdata/completed/5_workflow_job_completed.json")
@@ -467,7 +466,7 @@ func TestServeHTTP_WorkflowCompletedAccepted(t *testing.T) {
 func TestServeHTTP_ConsumerError(t *testing.T) {
 	cfg := createDefaultConfig().(*Config)
 	cfg.Secret = "top-secret"
-	rec, err := newTracesReceiver(receivertest.NewNopSettings(metadata.Type), cfg, &errTracesConsumer{})
+	rec, err := newTracesReceiver(receivertest.NewNopSettings(receiverType), cfg, &errTracesConsumer{})
 	require.NoError(t, err)
 
 	payload, err := os.ReadFile("./testdata/completed/5_workflow_job_completed.json")

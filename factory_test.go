@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/receiver/receivertest"
 )
@@ -39,7 +38,7 @@ func TestCreateTracesReceiver(t *testing.T) {
 
 				_, err := createTracesReceiver(
 					context.Background(),
-					receivertest.NewNopSettings(metadata.Type),
+					receivertest.NewNopSettings(receiverType),
 					cfg,
 					consumertest.NewNop(),
 				)
@@ -57,7 +56,7 @@ func TestCreateTracesReceiver(t *testing.T) {
 
 				_, err := createTracesReceiver(
 					context.Background(),
-					receivertest.NewNopSettings(metadata.Type),
+					receivertest.NewNopSettings(receiverType),
 					cfg,
 					nil,
 				)

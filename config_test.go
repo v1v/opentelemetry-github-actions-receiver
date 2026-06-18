@@ -13,8 +13,6 @@ import (
 	"go.opentelemetry.io/collector/config/confignet"
 	"go.opentelemetry.io/collector/confmap/confmaptest"
 	"go.opentelemetry.io/collector/confmap/xconfmap"
-
-	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
 
 // only one validate check so far
@@ -67,7 +65,7 @@ func TestLoadConfig(t *testing.T) {
 	cm, err := confmaptest.LoadConf(filepath.Join("testdata", "config.yaml"))
 	require.NoError(t, err)
 	// LoadConf includes the TypeStr which NewFactory does not set
-	id := component.NewIDWithName(metadata.Type, "valid_config")
+	id := component.NewIDWithName(receiverType, "valid_config")
 	cmNoStr, err := cm.Sub(id.String())
 	require.NoError(t, err)
 
