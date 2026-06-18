@@ -36,12 +36,12 @@ func newTracesReceiver(
 	config *Config,
 	nextConsumer consumer.Traces,
 ) (*githubActionsReceiver, error) {
-	if config.Endpoint == "" {
+	if config.NetAddr.Endpoint == "" {
 		return nil, errMissingEndpoint
 	}
 
 	transport := "http"
-	if config.TLSSetting != nil {
+	if config.TLS.HasValue() {
 		transport = "https"
 	}
 
@@ -70,10 +70,10 @@ func newTracesReceiver(
 }
 
 func (gar *githubActionsReceiver) Start(ctx context.Context, host component.Host) error {
-	endpoint := fmt.Sprintf("%s%s", gar.config.Endpoint, gar.config.Path)
+	endpoint := fmt.Sprintf("%s%s", gar.config.NetAddr.Endpoint, gar.config.Path)
 	gar.logger.Info("Starting GithubActions server", zap.String("endpoint", endpoint))
 	gar.server = &http.Server{
-		Addr:    gar.config.ServerConfig.Endpoint,
+		Addr:    gar.config.ServerConfig.NetAddr.Endpoint,
 		Handler: gar,
 	}
 

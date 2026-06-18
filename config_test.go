@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/component"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/confignet"
 	"go.opentelemetry.io/collector/confmap/confmaptest"
+	"go.opentelemetry.io/collector/confmap/xconfmap"
 
 	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
@@ -29,7 +31,7 @@ func TestValidateConfig(t *testing.T) {
 			expect: errMissingEndpointFromConfig,
 			conf: Config{
 				ServerConfig: confighttp.ServerConfig{
-					Endpoint: "",
+					NetAddr: confignet.AddrConfig{Endpoint: ""},
 				},
 			},
 		},
@@ -38,7 +40,7 @@ func TestValidateConfig(t *testing.T) {
 			expect: nil,
 			conf: Config{
 				ServerConfig: confighttp.ServerConfig{
-					Endpoint: "localhost:8080",
+					NetAddr: confignet.AddrConfig{Endpoint: "localhost:8080"},
 				},
 				Secret: "mysecret",
 			},
@@ -71,7 +73,7 @@ func TestLoadConfig(t *testing.T) {
 
 	expect := &Config{
 		ServerConfig: confighttp.ServerConfig{
-			Endpoint: "localhost:8080",
+			NetAddr: confignet.AddrConfig{Endpoint: "localhost:8080", Transport: confignet.TransportTypeTCP},
 		},
 		Path:   "/ghaevents",
 		Secret: "mysecret",
@@ -81,7 +83,7 @@ func TestLoadConfig(t *testing.T) {
 	factory := NewFactory()
 	conf := factory.CreateDefaultConfig()
 	require.NoError(t, cmNoStr.Unmarshal(conf))
-	require.NoError(t, component.ValidateConfig(conf))
+	require.NoError(t, xconfmap.Validate(conf))
 
 	require.Equal(t, expect, conf)
 }

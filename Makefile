@@ -3,7 +3,7 @@ MAKEFLAGS += --no-print-directory
 WEBHOOK_SECRET ?= secret
 APM_SERVER_URL ?=
 APM_SERVER_BEARER_TOKEN ?=
-OTEL_VERSION=v0.106.0
+OTEL_VERSION=v0.154.0
 
 #######################
 ## Tools
