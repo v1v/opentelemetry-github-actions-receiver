@@ -43,8 +43,8 @@ Application Firewall (WAF) or other security measure.
 
 The WebHook configuration exposes the following settings:
 
-* `endpoint`: (default = `localhost:8080`) - The address and port to bind the WebHook to.
-* `path`: (default = `/events`) - The path for Action events to be sent to.
+* `endpoint`: (default = `localhost:19418`) - The address and port to bind the WebHook to.
+* `path`: (default = `/ghaevents`) - The path for Action events to be sent to.
 * `secret`: (no default) - The webhook secret used to [validates the payload][valid].
 
 An example configuration is as follows:
