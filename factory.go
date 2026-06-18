@@ -34,15 +34,13 @@ func NewFactory() receiver.Factory {
 
 // createDefaultConfig creates the default configuration for GitHub Actions receiver.
 func createDefaultConfig() component.Config {
+	netAddr := confignet.NewDefaultAddrConfig()
+	netAddr.Transport = confignet.TransportTypeTCP
+	netAddr.Endpoint = defaultBindEndpoint
 	return &Config{
-		ServerConfig: confighttp.ServerConfig{
-			NetAddr: confignet.AddrConfig{
-				Endpoint:  defaultBindEndpoint,
-				Transport: confignet.TransportTypeTCP,
-			},
-		},
-		Path:   defaultPath,
-		Secret: "",
+		ServerConfig: confighttp.ServerConfig{NetAddr: netAddr},
+		Path:         defaultPath,
+		Secret:       "",
 	}
 }
 
