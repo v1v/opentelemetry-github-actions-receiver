@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/collector/config/confighttp"
 	"go.opentelemetry.io/collector/confmap/confmaptest"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubactionsreceiver/internal/metadata"
+	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
 
 // only one validate check so far

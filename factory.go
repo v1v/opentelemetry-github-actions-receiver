@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/receiver"
 
-	"github.com/open-telemetry/opentelemetry-collector-contrib/receiver/githubactionsreceiver/internal/metadata"
+	"github.com/v1v/opentelemetry-github-actions-receiver/internal/metadata"
 )
 
 // This file implements factory for GitHub Actions receiver.
