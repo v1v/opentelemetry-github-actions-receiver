@@ -19,9 +19,8 @@ import (
 var receiverType = component.MustNewType("githubactions")
 
 const (
-	defaultBindEndpoint  = "0.0.0.0:19418"
-	defaultPath          = "/ghaevents"
-	tracesStability      = component.StabilityLevelAlpha
+	defaultBindEndpoint = "0.0.0.0:19418"
+	defaultPath         = "/ghaevents"
 )
 
 // NewFactory creates a new GitHub Actions receiver factory
@@ -29,7 +28,7 @@ func NewFactory() receiver.Factory {
 	return receiver.NewFactory(
 		receiverType,
 		createDefaultConfig,
-		receiver.WithTraces(createTracesReceiver, tracesStability),
+		receiver.WithTraces(createTracesReceiver, component.StabilityLevelAlpha),
 	)
 }
 
