@@ -3,7 +3,7 @@ MAKEFLAGS += --no-print-directory
 WEBHOOK_SECRET ?= secret
 APM_SERVER_URL ?=
 APM_SERVER_BEARER_TOKEN ?=
-OTEL_VERSION=v0.102.0
+OTEL_VERSION=v0.106.0
 
 #######################
 ## Tools
@@ -28,7 +28,7 @@ install-ocb:
 ## MAKE GOALS
 .PHONY: build
 build: ## Build the binary
-	@$(OCB) --config builder-config.yml
+	@$(OCB) --skip-strict-versioning --config builder-config.yml
 
 .PHONY: run
 run: ## Run the binary
