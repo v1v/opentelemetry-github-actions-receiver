@@ -1,30 +1,41 @@
-name: ci
+name: CI
+
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
+    branches: [ main ]
 
 jobs:
-  build:
-    timeout-minutes: 10
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+    - name: Checkout code
+      uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: oldstable
-          cache: false
-    
-      - name: Install Tools
-        run: make install-ocb
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version-file: 'go.mod'
+        cache: true
 
-      - name: Build
-        run: make build
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run tests
+      run: go test -v -race -covermode=atomic ./...
+
+    - name: Install OCB
+      run: make install-ocb
+
+    - name: Build custom collector
+      run: make build
+
+    - name: Verify binary exists
+      run: test -f ./bin/custom
