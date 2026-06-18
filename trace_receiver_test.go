@@ -20,6 +20,7 @@ import (
 	"github.com/google/go-github/v78/github"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/collector/config/confighttp"
+	"go.opentelemetry.io/collector/config/configtls"
 	"go.opentelemetry.io/collector/consumer"
 	"go.opentelemetry.io/collector/consumer/consumertest"
 	"go.opentelemetry.io/collector/pdata/pcommon"
@@ -54,6 +55,24 @@ func TestCreateNewTracesReceiver(t *testing.T) {
 			},
 			consumer: consumertest.NewNop(),
 		},
+		{
+			desc: "Missing endpoint fails",
+			config: Config{
+				ServerConfig: confighttp.ServerConfig{},
+			},
+			consumer: consumertest.NewNop(),
+			err:      errMissingEndpoint,
+		},
+		{
+			desc: "TLS config success",
+			config: Config{
+				ServerConfig: confighttp.ServerConfig{
+					Endpoint:   "localhost:8080",
+					TLSSetting: &configtls.ServerConfig{},
+				},
+			},
+			consumer: consumertest.NewNop(),
+		},
 	}
 
 	for _, test := range tests {
@@ -65,6 +84,49 @@ func TestCreateNewTracesReceiver(t *testing.T) {
 				require.ErrorIs(t, err, test.err)
 				require.Nil(t, rec)
 			}
+		})
+	}
+}
+
+func TestEventToTracesUnknownEvent(t *testing.T) {
+	logger := zaptest.NewLogger(t)
+
+	_, err := eventToTraces(struct{ name string }{name: "unsupported"}, &Config{}, logger)
+	require.Error(t, err)
+	require.Equal(t, "unknown event type", err.Error())
+}
+
+func TestGenerateServiceName(t *testing.T) {
+	tests := []struct {
+		desc     string
+		cfg      *Config
+		fullName string
+		expected string
+	}{
+		{
+			desc: "Custom service name overrides all",
+			cfg: &Config{
+				CustomServiceName: "custom-service",
+				ServiceNamePrefix: "pre-",
+				ServiceNameSuffix: "-suf",
+			},
+			fullName: "Org/Repo_Name",
+			expected: "custom-service",
+		},
+		{
+			desc: "Name formatted with prefix and suffix",
+			cfg: &Config{
+				ServiceNamePrefix: "pre-",
+				ServiceNameSuffix: "-suf",
+			},
+			fullName: "Org/Repo_Name",
+			expected: "pre-org-repo-name-suf",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			require.Equal(t, tc.expected, generateServiceName(tc.cfg, tc.fullName))
 		})
 	}
 }
